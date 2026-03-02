@@ -1,0 +1,49 @@
+/* pages/product/list.wxss */
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20rpx;
+}
+
+.product-card {
+  background: white;
+  border-radius: 12rpx;
+  overflow: hidden;
+}
+
+.product-image {
+  width: 100%;
+  height: 340rpx;
+}
+
+.product-info {
+  padding: 20rpx;
+}
+
+.product-name {
+  font-size: 28rpx;
+  color: #333;
+  margin-bottom: 12rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.product-price {
+  margin-bottom: 8rpx;
+}
+
+.product-stock {
+  font-size: 24rpx;
+  color: #999;
+}
+
+.empty {
+  text-align: center;
+  padding: 200rpx 0;
+}
+
+.empty-text {
+  font-size: 28rpx;
+  color: #999;
+}

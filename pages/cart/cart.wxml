@@ -1,0 +1,33 @@
+<!--pages/cart/cart.wxml-->
+<view class="container">
+  <view wx:if="{{cart.length > 0}}">
+    <view class="cart-item" wx:for="{{cart}}" wx:key="id">
+      <image src="{{item.imageUrl}}" mode="aspectFill" class="cart-image"></image>
+      <view class="cart-info">
+        <view class="cart-name">{{item.name}}</view>
+        <view class="cart-price price-small">¥{{item.price}}</view>
+        <view class="cart-quantity">
+          <button class="quantity-btn" bindtap="decreaseQuantity" data-id="{{item.id}}">-</button>
+          <text class="quantity-text">{{item.quantity}}</text>
+          <button class="quantity-btn" bindtap="increaseQuantity" data-id="{{item.id}}">+</button>
+        </view>
+      </view>
+      <view class="cart-actions">
+        <button class="btn-danger mini-btn" bindtap="removeItem" data-id="{{item.id}}">删除</button>
+      </view>
+    </view>
+    
+    <view class="cart-summary card">
+      <view class="summary-row">
+        <text>总计:</text>
+        <text class="price">¥{{totalPrice}}</text>
+      </view>
+      <button class="btn-primary checkout-btn" bindtap="checkout">结算</button>
+    </view>
+  </view>
+  
+  <view wx:else class="empty">
+    <text class="empty-text">购物车是空的</text>
+    <button class="btn-primary" bindtap="goShopping">去逛逛</button>
+  </view>
+</view>

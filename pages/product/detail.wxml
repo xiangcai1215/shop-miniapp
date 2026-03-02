@@ -1,0 +1,21 @@
+<!--pages/product/detail.wxml-->
+<view class="container">
+  <view class="product-detail">
+    <image src="{{product.imageUrl}}" mode="aspectFill" class="detail-image"></image>
+    
+    <view class="detail-info card">
+      <view class="detail-name">{{product.name}}</view>
+      <view class="detail-price price">¥{{product.price}}</view>
+      <view class="detail-stock">库存: {{product.stock}}</view>
+    </view>
+    
+    <view class="detail-desc card" wx:if="{{product.description}}">
+      <view class="desc-title">商品描述</view>
+      <view class="desc-content">{{product.description}}</view>
+    </view>
+  </view>
+  
+  <view class="bottom-bar">
+    <button class="btn-primary add-cart-btn" bindtap="addToCart">加入购物车</button>
+  </view>
+</view>

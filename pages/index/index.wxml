@@ -1,0 +1,26 @@
+<!--pages/index/index.wxml-->
+<view class="container">
+  <view class="banner">
+    <text class="banner-title">欢迎来到商品小店</text>
+    <text class="banner-subtitle">精选好物,等你来选</text>
+  </view>
+  
+  <view class="section">
+    <view class="section-title">热门商品</view>
+    <view class="product-list">
+      <view class="product-item" wx:for="{{products}}" wx:key="id" wx:if="{{index < 4}}" bindtap="goDetail" data-id="{{item.id}}">
+        <image src="{{item.imageUrl}}" mode="aspectFill" class="item-image"></image>
+        <view class="item-info">
+          <view class="item-name">{{item.name}}</view>
+          <view class="item-price price-small">¥{{item.price}}</view>
+        </view>
+      </view>
+    </view>
+    
+    <view wx:if="{{products.length === 0}}" class="empty-hint">
+      <text>暂无商品,去上传页面添加吧~</text>
+    </view>
+    
+    <button wx:if="{{products.length > 4}}" class="view-more-btn" bindtap="viewMore">查看更多</button>
+  </view>
+</view>

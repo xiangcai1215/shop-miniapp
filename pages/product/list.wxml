@@ -1,0 +1,17 @@
+<!--pages/product/list.wxml-->
+<view class="container">
+  <view class="product-grid">
+    <view class="product-card" wx:for="{{products}}" wx:key="id" bindtap="goDetail" data-id="{{item.id}}">
+      <image src="{{item.imageUrl}}" mode="aspectFill" class="product-image"></image>
+      <view class="product-info">
+        <view class="product-name">{{item.name}}</view>
+        <view class="product-price price">¥{{item.price}}</view>
+        <view class="product-stock">库存: {{item.stock}}</view>
+      </view>
+    </view>
+  </view>
+  
+  <view wx:if="{{products.length === 0}}" class="empty">
+    <text class="empty-text">暂无商品</text>
+  </view>
+</view>
