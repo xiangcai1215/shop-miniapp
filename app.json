@@ -4,7 +4,6 @@
     "pages/product/list",
     "pages/product/detail",
     "pages/cart/cart",
-    "pages/order/order",
     "pages/admin/upload"
   ],
   "window": {
