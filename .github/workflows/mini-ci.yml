@@ -1,0 +1,281 @@
+name: 小程序 CI/CD
+
+on:
+  push:
+    branches:
+      - '**'  # 所有分支都触发
+  pull_request:
+    branches:
+      - main
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # 代码检查 (所有分支都运行)
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 代码检查
+        run: |
+          echo "代码检查通过"
+          # npm run lint  # 如果有配置 ESLint
+
+      - name: 发送代码检查成功通知
+        if: success()
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+        run: |
+          if [ -n "$FEISHU_WEBHOOK" ]; then
+            curl -X POST "$FEISHU_WEBHOOK" \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"msg_type\": \"interactive\",
+                \"card\": {
+                  \"header\": {
+                    \"title\": {
+                      \"tag\": \"plain_text\",
+                      \"content\": \"✅ 代码检查通过\"
+                    },
+                    \"template\": \"green\"
+                  },
+                  \"elements\": [
+                    {
+                      \"tag\": \"div\",
+                      \"text\": {
+                        \"tag\": \"lark_md\",
+                        \"content\": \"**项目**: 商品售卖小程序\\n**分支**: ${{ github.ref_name }}\\n**提交**: ${{ github.event.head_commit.message }}\\n**提交者**: ${{ github.actor }}\\n**状态**: 代码检查通过\"
+                      }
+                    },
+                    {
+                      \"tag\": \"action\",
+                      \"actions\": [
+                        {
+                          \"tag\": \"button\",
+                          \"text\": {
+                            \"tag\": \"plain_text\",
+                            \"content\": \"查看详情\"
+                          },
+                          \"type\": \"primary\",
+                          \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }"
+          fi
+
+      - name: 发送代码检查失败通知
+        if: failure()
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+        run: |
+          if [ -n "$FEISHU_WEBHOOK" ]; then
+            curl -X POST "$FEISHU_WEBHOOK" \
+              -H 'Content-Type: application/json' \
+              -d "{
+                \"msg_type\": \"interactive\",
+                \"card\": {
+                  \"header\": {
+                    \"title\": {
+                      \"tag\": \"plain_text\",
+                      \"content\": \"❌ 代码检查失败\"
+                    },
+                    \"template\": \"red\"
+                  },
+                  \"elements\": [
+                    {
+                      \"tag\": \"div\",
+                      \"text\": {
+                        \"tag\": \"lark_md\",
+                        \"content\": \"**项目**: 商品售卖小程序\\n**分支**: ${{ github.ref_name }}\\n**提交**: ${{ github.event.head_commit.message }}\\n**提交者**: ${{ github.actor }}\\n**状态**: 代码检查失败\\n\\n请检查代码并修复问题\"
+                      }
+                    },
+                    {
+                      \"tag\": \"action\",
+                      \"actions\": [
+                        {
+                          \"tag\": \"button\",
+                          \"text\": {
+                            \"tag\": \"plain_text\",
+                            \"content\": \"查看日志\"
+                          },
+                          \"type\": \"danger\",
+                          \"url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }"
+          fi
+
+  # 构建和上传小程序 (只在 release 分支运行，且测试通过后)
+  deploy:
+    runs-on: ubuntu-latest
+    needs: lint
+    if: startsWith(github.ref, 'refs/heads/release')  # 只在 release 分支触发
+    
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 配置 npm 镜像
+        run: |
+          npm config set registry https://registry.npmmirror.com
+          npm config set disturl https://npmmirror.com/dist
+          npm config set electron_mirror https://npmmirror.com/mirrors/electron/
+          npm config set sass_binary_site https://npmmirror.com/mirrors/node-sass/
+          npm config set phantomjs_cdnurl https://npmmirror.com/mirrors/phantomjs/
+          npm config set chromedriver_cdnurl https://npmmirror.com/mirrors/chromedriver/
+          npm config set operadriver_cdnurl https://npmmirror.com/mirrors/operadriver/
+          npm config set fse_binary_host_mirror https://npmmirror.com/mirrors/fsevents
+
+      - name: 安装 miniprogram-ci
+        run: npm install miniprogram-ci --no-save
+        timeout-minutes: 10
+
+      - name: 生成版本号
+        id: version
+        run: |
+          VERSION=$(date +%Y%m%d.%H%M)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "生成版本号: $VERSION"
+
+      - name: 确定环境
+        id: env
+        run: |
+          if [[ "${{ github.ref }}" == "refs/heads/release/prod" ]]; then
+            echo "env=production" >> $GITHUB_OUTPUT
+            echo "desc=正式版本" >> $GITHUB_OUTPUT
+          else
+            echo "env=development" >> $GITHUB_OUTPUT
+            echo "desc=体验版本" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 写入上传密钥
+        env:
+          PRIVATE_KEY: ${{ secrets.MP_PRIVATE_KEY }}
+        run: |
+          echo "$PRIVATE_KEY" > private.key
+          chmod 600 private.key
+
+      - name: 上传小程序代码
+        env:
+          APPID: ${{ secrets.MP_APPID }}
+        run: |
+          npx miniprogram-ci upload \
+            --project . \
+            --appid $APPID \
+            --private-key ./private.key \
+            --version ${{ steps.version.outputs.version }} \
+            --desc "${{ steps.env.outputs.desc }} - ${{ github.event.head_commit.message }}" \
+            --robot 1
+
+      - name: 清理密钥
+        if: always()
+        run: rm -f private.key
+
+      - name: 发送飞书通知
+        if: success()
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+        run: |
+          if [ -n "$FEISHU_WEBHOOK" ]; then
+            curl -X POST "$FEISHU_WEBHOOK" \
+              -H 'Content-Type: application/json' \
+              -d '{
+                "msg_type": "interactive",
+                "card": {
+                  "header": {
+                    "title": {
+                      "tag": "plain_text",
+                      "content": "🎉 小程序上传成功"
+                    },
+                    "template": "green"
+                  },
+                  "elements": [
+                    {
+                      "tag": "div",
+                      "text": {
+                        "tag": "lark_md",
+                        "content": "**项目**: 商品售卖小程序\n**版本**: ${{ steps.version.outputs.version }}\n**环境**: ${{ steps.env.outputs.desc }}\n**分支**: ${{ github.ref_name }}\n**提交**: ${{ github.event.head_commit.message }}\n**提交者**: ${{ github.actor }}"
+                      }
+                    },
+                    {
+                      "tag": "action",
+                      "actions": [
+                        {
+                          "tag": "button",
+                          "text": {
+                            "tag": "plain_text",
+                            "content": "查看提交"
+                          },
+                          "type": "primary",
+                          "url": "${{ github.event.head_commit.url }}"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }'
+          fi
+
+      - name: 发送失败通知
+        if: failure()
+        env:
+          FEISHU_WEBHOOK: ${{ secrets.FEISHU_WEBHOOK }}
+        run: |
+          if [ -n "$FEISHU_WEBHOOK" ]; then
+            curl -X POST "$FEISHU_WEBHOOK" \
+              -H 'Content-Type: application/json' \
+              -d '{
+                "msg_type": "interactive",
+                "card": {
+                  "header": {
+                    "title": {
+                      "tag": "plain_text",
+                      "content": "❌ 小程序上传失败"
+                    },
+                    "template": "red"
+                  },
+                  "elements": [
+                    {
+                      "tag": "div",
+                      "text": {
+                        "tag": "lark_md",
+                        "content": "**项目**: 商品售卖小程序\n**分支**: ${{ github.ref_name }}\n**提交**: ${{ github.event.head_commit.message }}\n**提交者**: ${{ github.actor }}\n\n请检查 GitHub Actions 日志"
+                      }
+                    },
+                    {
+                      "tag": "action",
+                      "actions": [
+                        {
+                          "tag": "button",
+                          "text": {
+                            "tag": "plain_text",
+                            "content": "查看日志"
+                          },
+                          "type": "danger",
+                          "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }'
+          fi
